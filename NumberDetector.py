@@ -1,12 +1,12 @@
+from time import process_time_ns
+
 import cv2
 import numpy as np
 import pygame
 from pygame.locals import *
+from Detector_de_numeros.Lib.Schemas.DefaultButton import DefaultButton
 
 #define as constantes referentes às cores
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-MAGENTA = (200, 0, 100)
 
 #define as informações da tela
 screen_width = 640
@@ -19,28 +19,24 @@ clock = pygame.time.Clock()
 pygame.display.set_caption("Number Detector") #titulo da janela
 
 #define as informações do botão 'guess number'
-button_guess_number_width = 220
-button_guess_number_height = 50
-button_guess_number_X = screen_width//2 - button_guess_number_width//2
-button_guess_number_Y = (screen_height//2)-button_guess_number_height
-button_guess_number_border = 5
-button_guess_number_info = [button_guess_number_X, button_guess_number_Y, button_guess_number_width, button_guess_number_height, "GUESS NUMBER", WHITE, button_guess_number_border]
+
+guess_button = DefaultButton(height=50,width=220,border=5,text="GUESS NUMBER",colour="WHITE")
+guess_button.set_x_pos((screen_width//2- guess_button.get_width()//2))
+guess_button.set_y_pos((screen_height//2)-guess_button.get_height())
 
 #define as informações do botão 'train model'
-button_train_model_width = 220
-button_train_model_height = 50
-button_train_model_X = button_guess_number_X
-button_train_model_Y = button_guess_number_Y + button_guess_number_height + 10
-button_train_model_border = 5
-button_train_model_info = [button_train_model_X, button_train_model_Y, button_train_model_width, button_train_model_height, "TRAIN MODEL", WHITE, button_train_model_border]
+
+train_model_button = DefaultButton(width=220, height=50,border= 5, colour="WHITE", text= "TRAIN MODEL")
+train_model_button.set_x_pos(guess_button.get_x_pos())
+train_model_button.set_y_pos(guess_button.get_y_pos() + guess_button.get_height() + 10)
 
 #define as informações do botão 'exit'
-button_exit_width = 220
-button_exit_height = 50
-button_exit_X = button_guess_number_X
-button_exit_Y = button_train_model_Y + button_train_model_height + 10
-button_exit_border = 5
-button_exit_info = [button_exit_X, button_exit_Y, button_exit_width, button_exit_height, "EXIT", WHITE, button_exit_border]
+
+exit_button = DefaultButton(width=220, height=50,border= 5, colour="WHITE", text= "EXIT")
+exit_button.set_x_pos(guess_button.get_x_pos())
+exit_button.set_y_pos(train_model_button.get_y_pos()+ train_model_button.get_height() + 10)
+
+
 
 #verifica se o mouse esta sobre uma certa area
 def mouse_on_area(mouse_pos, area_info):
@@ -60,22 +56,25 @@ def draw_text(text_info):
     screen.blit(text_surface, text_rect)
 
 #função que exibe um botão na tela
-def draw_button(button_info):
+def draw_button(button_info:DefaultButton):
 
-    rect = tuple(button_info[0:4])
-    pygame.draw.rect(screen, button_info[5], rect, button_info[6])
+    rect = button_info.get_x_pos(),button_info.get_y_pos(),button_info.get_width(),button_info.get_height()
+    pygame.draw.rect(screen, button_info.get_colour(), rect, button_info.get_border())
 
-    text_content = button_info[4]
-    text_X = button_info[0]+(button_info[2]//2)
-    text_Y = button_info[1]+(button_info[3]//2)
-    text_colour = button_info[5]
-    text_info = [text_content, text_X, text_Y, text_colour]
+    text_content = button_info.get_text()
+    text_x = button_info.get_x_pos()+(button_info.get_width()//2)
+    text_y = button_info.get_y_pos()+(button_info.get_height()//2)
+    text_colour = button_info.get_colour()
+    text_info = [text_content, text_x, text_y, text_colour]
 
-    if button_info[4] != "":
+    if button_info.get_text() != "":
         draw_text(text_info)
 
+
+
+
 #função que exibe o menu principal da aplicação
-def mainMenu():
+def main_menu():
 
     running = True
     while running:
@@ -86,32 +85,33 @@ def mainMenu():
             
             if event.type == QUIT:
                 running = False
-            
-            if mouse_on_area(mouse_pos, button_guess_number_info[0:4]):
-                button_guess_number_info[5] = MAGENTA
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    guessNumberScreen()
-            else:
-                button_guess_number_info[5] = WHITE
-                
-            if mouse_on_area(mouse_pos, button_train_model_info[0:4]):
-                button_train_model_info[5] = MAGENTA
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    trainModelScreen()
-            else:
-                button_train_model_info[5] = WHITE
 
-            if mouse_on_area(mouse_pos, button_exit_info[0:4]):
-                button_exit_info[5] = MAGENTA
-                if event.type == pygame.MOUSEBUTTONDOWN:
+
+
+            guess_button.onHover(mouse_pos,"MAGENTA")
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if guess_button.isHover(mouse_pos):
+                    guessNumberScreen()
+                    print("hello")
+
+            train_model_button.onHover(mouse_pos,"MAGENTA")
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if train_model_button.isHover(mouse_pos):
+                    guessNumberScreen()
+                    print("hello")
+
+            exit_button.onHover(mouse_pos,"MAGENTA")
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if exit_button.isHover(mouse_pos):
+                    guessNumberScreen()
                     running = False
-            else:
-                button_exit_info[5] = WHITE
+
+
         
-        screen.fill(BLACK)
-        draw_button(button_guess_number_info)
-        draw_button(button_train_model_info)
-        draw_button(button_exit_info)
+        screen.fill((0,0,0))
+        draw_button(guess_button)
+        draw_button(train_model_button)
+        draw_button(exit_button)
         
         pygame.display.update() 
         clock.tick(60)
@@ -122,4 +122,8 @@ def guessNumberScreen():
 def trainModelScreen():
     pass
 
-mainMenu()
+if __name__ == "__main__":
+    main_menu()
+
+
+
