@@ -89,16 +89,22 @@ def mainMenu():
             
             if mouse_on_area(mouse_pos, button_guess_number_info[0:4]):
                 button_guess_number_info[5] = MAGENTA
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    guessNumberScreen()
             else:
                 button_guess_number_info[5] = WHITE
                 
             if mouse_on_area(mouse_pos, button_train_model_info[0:4]):
                 button_train_model_info[5] = MAGENTA
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    trainModelScreen()
             else:
                 button_train_model_info[5] = WHITE
 
             if mouse_on_area(mouse_pos, button_exit_info[0:4]):
                 button_exit_info[5] = MAGENTA
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    running = False
             else:
                 button_exit_info[5] = WHITE
         
@@ -109,5 +115,11 @@ def mainMenu():
         
         pygame.display.update() 
         clock.tick(60)
+
+def guessNumberScreen():
+    pass
+
+def trainModelScreen():
+    pass
 
 mainMenu()
