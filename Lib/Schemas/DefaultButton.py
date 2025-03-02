@@ -1,41 +1,32 @@
-from typing import Tuple
+from .DefaultColors import Colors
 
-
-class DefaultButton:
+class DefaultButton(Colors):
     
-    def __init__(self,width:int,height:int, border:int , text:str,colour:str|None = None, x_pos:int| None =None, y_pos:int|None = None, ):
+    def __init__(self, width:int, height:int, border:int , text:str,color:str|None = None, x_pos:int|None = None, y_pos:int|None = None):
 
-        self.WHITE = (255, 255, 255)
-        self.BLACK = (0, 0, 0)
-        self.MAGENTA = (200, 0, 100)
-
-        self.set_colour(colour)
+        self.set_color(color)
         self.set_y_pos(y_pos)
         self.set_x_pos(x_pos)
-
 
         self.__width = width
         self.__height = height
         self.__border = border
-        self.__text = text
-        
-        
+        self.__text = text      
     
-    def set_colour(self, colour: str|None):
+    def set_color(self, color: str|None):
 
-        if colour is None :
-            self.__colour = self.WHITE
+        if color is None :
+            self.__color = super.WHITE
         else:
-            colour = colour.upper()
-            if colour == "WHITE":
-                self.__colour = self.WHITE
-            if colour == "BLACK":
-                self.__colour = self.BLACK
-            if colour == "MAGENTA":
-                self.__colour = self.MAGENTA
+            color = color.upper()
+            color_dict = super().get_colorDict()
+            try:
+                self.__color = color_dict[color]
+            except:
+                raise ValueError("Nome inválido para cor")
 
-    def get_colour (self)-> Tuple[int,int,int]:
-        return self.__colour
+    def get_colour (self)-> tuple[int,int,int]:
+        return self.__color
 
     def isHover(self, mouse_pos: tuple[int, int]):
         if self.get_x_pos() <= mouse_pos[0] <= self.get_x_pos() + self.get_width() and self.get_y_pos() <= mouse_pos[1] <= self.get_y_pos() + self.get_height():
@@ -44,9 +35,9 @@ class DefaultButton:
 
     def onHover(self, mouse_pos: tuple[int, int], hover_color: str):
         if self.isHover(mouse_pos):
-            self.set_colour(hover_color)
+            self.set_color(hover_color)
         else:
-            self.set_colour("white")
+            self.set_color("white")
 
     def set_x_pos(self,position:int | None):
         if position is None:
