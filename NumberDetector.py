@@ -1,11 +1,12 @@
 from time import process_time_ns
-
+import sys
 import cv2
 import numpy as np
 import pygame
 from pygame.locals import *
 from Lib.Schemas.DefaultButton import DefaultButton
 from Lib.Schemas.DefaultText import DefaultText
+from Lib.Schemas.DefaultArea import DefaultArea
 
 #define as informações da tela
 
@@ -19,38 +20,65 @@ screen = pygame.display.set_mode((screen_width, screen_height)) #criacao da tela
 clock = pygame.time.Clock()
 pygame.display.set_caption("Number Detector") #titulo da janela
 
-#define as informações do botão 'guess number'
+
+# region BUTTONS
 
 guess_button = DefaultButton(height=50,width=220,border=5,text="GUESS NUMBER",color="WHITE")
 guess_button.set_x_pos((screen_width//2)-guess_button.get_width()//2)
 guess_button.set_y_pos((screen_height//2)-guess_button.get_height())
 
-#define as informações do botão 'train model'
-
 train_model_button = DefaultButton(width=220, height=50,border= 5, color="WHITE", text= "TRAIN MODEL")
 train_model_button.set_x_pos(guess_button.get_x_pos())
 train_model_button.set_y_pos(guess_button.get_y_pos() + guess_button.get_height() + 10)
 
-#define as informações do botão 'exit'
-
-exit_button = DefaultButton(width=220, height=50,border= 5, color="WHITE", text= "EXIT")
+exit_button = DefaultButton(width=220, height=50, border=5, color="WHITE", text= "EXIT")
 exit_button.set_x_pos(guess_button.get_x_pos())
 exit_button.set_y_pos(train_model_button.get_y_pos()+ train_model_button.get_height() + 10)
 
-#define as informações do título do meu principal
+return_button = DefaultButton(width=220, height=50, border=5, color="WHITE", text="RETURN")
+return_button.set_x_pos(screen_width-return_button.get_width()-20)
+return_button.set_y_pos(screen_height-return_button.get_height()-50)
+
+erase_button = DefaultButton(width=220, height=50, border=5, color="WHITE", text="ERASE")
+erase_button.set_x_pos(return_button.get_x_pos())
+erase_button.set_y_pos(return_button.get_y_pos()-return_button.get_height()-20)
+
+trainDB_button = DefaultButton(width=220, height=50, border=5, color="WHITE", text="TRAIN DB")
+trainDB_button.set_x_pos(erase_button.get_x_pos())
+trainDB_button.set_y_pos(erase_button.get_y_pos()-erase_button.get_height()-20)
+# endregion
+
+# region AREAS
+
+drawing_area = DefaultArea(width=(return_button.get_x_pos()-20), height=screen_height)
+
+typing_area = DefaultArea(width=220, height=50)
+typing_area.set_x_pos(trainDB_button.get_x_pos())
+typing_area.set_y_pos(trainDB_button.get_y_pos()-trainDB_button.get_height()-100)
+typing_area.set_color("WHITE")
+# endregion
+
+# region TEXTS
 
 main_menu_title = DefaultText(text="Number Detector", color="CYAN", size=100)
 main_menu_title.set_x_pos(screen_width//2)
 main_menu_title.set_y_pos(guess_button.get_y_pos() - 100)
 
-#verifica se o mouse esta sobre uma certa area
-def mouse_on_area(mouse_pos, area_info):
-    if area_info[0] <= mouse_pos[0] <= area_info[0] + area_info[2] and area_info[1] <= mouse_pos[1] <= area_info[1] + area_info[3]:
+typing_text = DefaultText(text="", color="BLACK", size=50)
+typing_text.set_x_pos(typing_area.get_x_pos()+typing_area.get_width()//2)
+typing_text.set_y_pos(typing_area.get_y_pos()+typing_area.get_height()//2)
+
+# endregion
+
+#region FUNCTIONS
+
+def mouse_on_area(mouse_pos, area_info:DefaultArea):
+    if area_info.get_x_pos() <= mouse_pos[0] <= area_info.get_x_pos() + area_info.get_width() and area_info.get_y_pos() <= mouse_pos[1] <= area_info.get_y_pos() + area_info.get_height():
         return True
     else:
         return False
 
-#função que exibe um texto na tela
+
 def draw_text(text_info:DefaultText):
 
     font = pygame.font.Font(None, text_info.get_size())
@@ -60,7 +88,6 @@ def draw_text(text_info:DefaultText):
 
     screen.blit(text_surface, text_rect)
 
-#função que exibe um botão na tela
 def draw_button(button_info:DefaultButton):
 
     rect = button_info.get_x_pos(),button_info.get_y_pos(),button_info.get_width(),button_info.get_height()
@@ -73,7 +100,7 @@ def draw_button(button_info:DefaultButton):
     if button_info.get_text() != "":
         draw_text(text_info)
 
-
+# endregion
 
 
 #função que exibe o menu principal da aplicação
@@ -89,22 +116,20 @@ def main_menu():
             if event.type == QUIT:
                 running = False
 
-            guess_button.onHover(mouse_pos,"MAGENTA")
+            guess_button.changeColorOnHover(mouse_pos,"MAGENTA")
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if guess_button.isHover(mouse_pos):
-                    guessNumberScreen()
+                    guessNumber()
                     print(guess_button.get_colour())
 
-            train_model_button.onHover(mouse_pos,"MAGENTA")
+            train_model_button.changeColorOnHover(mouse_pos,"MAGENTA")
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if train_model_button.isHover(mouse_pos):
-                    guessNumberScreen()
-                    print(train_model_button.get_colour())
+                    trainModel()
 
-            exit_button.onHover(mouse_pos,"MAGENTA")
+            exit_button.changeColorOnHover(mouse_pos,"MAGENTA")
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if exit_button.isHover(mouse_pos):
-                    guessNumberScreen()
                     running = False
         
         screen.fill((0,0,0))
@@ -118,11 +143,91 @@ def main_menu():
 
     pygame.quit()
 
-def guessNumberScreen():
+def guessNumber():
     pass
 
-def trainModelScreen():
-    pass
+def trainModel():
+    
+    screen.fill((0,0,0))
+    drawing = [False, True] #o primeiro parâmetro define se o usuario está apto a desenhar e o segundo se essa é a primeira iteração
+    typing = False
+    number = None
+    running = True
+    while running:
+
+        mouse_pos = pygame.mouse.get_pos()
+
+        for event in pygame.event.get():
+            
+            if event.type == QUIT:
+                sys.exit()
+
+            return_button.changeColorOnHover(mouse_pos, "MAGENTA")
+            erase_button.changeColorOnHover(mouse_pos, "MAGENTA")
+            trainDB_button.changeColorOnHover(mouse_pos, "MAGENTA")
+
+            if not mouse_on_area(mouse_pos, drawing_area):
+                drawing[0] = False
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+
+                if mouse_on_area(mouse_pos, drawing_area):
+                    drawing[0] = True
+
+                if mouse_on_area(mouse_pos, typing_area):
+                    typing = True
+                    typing_area.set_color("NOT_TOO_WHITE")
+                else:
+                    typing = False
+                    typing_area.set_color("WHITE")
+                
+                if return_button.isHover(mouse_pos):
+                    running = False
+
+                if erase_button.isHover(mouse_pos):
+                    screen.fill((0,0,0))
+                    number = None
+                    typing_text.set_text("")
+
+            if event.type == pygame.MOUSEBUTTONUP:
+                drawing[0] = False
+                drawing[1] = True
+
+            if event.type == pygame.KEYDOWN and typing:
+
+                if event.key == pygame.K_BACKSPACE:
+                    number = None
+                    typing_text.set_text("")
+                else:
+                    if event.unicode.isdigit():
+                        number = event.unicode
+                        typing_text.set_text(str(number))
+
+
+
+        pygame.draw.line(screen, "WHITE", (drawing_area.get_width(), 0), (drawing_area.get_width(), screen_height), 3)
+
+        #define o menor retangulo que cobre todos os botões da tela
+        buttons_rect = [trainDB_button.get_x_pos(), trainDB_button.get_y_pos(), trainDB_button.get_x_pos()+trainDB_button.get_width(), (return_button.get_y_pos()+return_button.get_height())-trainDB_button.get_y_pos()]
+        pygame.draw.rect(screen, "BLACK", buttons_rect)
+        typing_area_rect = [typing_area.get_x_pos(), typing_area.get_y_pos(), typing_area.get_width(), typing_area.get_height()]
+        pygame.draw.rect(screen, typing_area.get_color(), typing_area_rect)
+
+        draw_button(return_button)
+        draw_button(erase_button)
+        draw_button(trainDB_button)
+        draw_text(typing_text)
+
+        if drawing[0]:
+            pygame.draw.circle(screen, "WHITE", mouse_pos, 2, 5)
+            if not drawing[1]:
+                pygame.draw.line(screen, "WHITE", mouse_pos, mouse_last_pos, 5)
+            mouse_last_pos = mouse_pos
+            drawing[1] = False
+
+        pygame.display.update() 
+        clock.tick(60)
+
 
 if __name__ == "__main__":
     main_menu()

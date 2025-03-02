@@ -1,4 +1,4 @@
-from .DefaultColors import Colors
+from .DefaultColor import Colors
 
 class DefaultButton(Colors):
     
@@ -33,7 +33,7 @@ class DefaultButton(Colors):
             return True
         return False
 
-    def onHover(self, mouse_pos: tuple[int, int], hover_color: str):
+    def changeColorOnHover(self, mouse_pos: tuple[int, int], hover_color: str):
         if self.isHover(mouse_pos):
             self.set_color(hover_color)
         else:

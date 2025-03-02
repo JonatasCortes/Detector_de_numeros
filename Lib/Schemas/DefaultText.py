@@ -1,4 +1,4 @@
-from .DefaultColors import Colors
+from .DefaultColor import Colors
 
 class DefaultText(Colors):
 
@@ -7,22 +7,24 @@ class DefaultText(Colors):
         self.set_color(color)
         self.set_y_pos(y_pos)
         self.set_x_pos(x_pos)
+        self.set_text(text)
 
-        self.__text = text
         self.__size = size
 
     def set_color(self, color: str|tuple[int, int, int]|None):
+
+        color_dict = super().get_colorDict()
+
         if color is None:
-            self.__color = "WHITE"
+            self.__color = color_dict["WHITE"]
+
         elif type(color) == str:
-
             color = color.upper()
-            color_dict = super().get_colorDict()
-
             try:
                 self.__color = color_dict[color]
             except:
                 raise ValueError("Nome inválido para cor")
+            
         else:
             if 0 <= color[0] <= 255 and 0 <= color[1] <= 255 and 0 <= color[2] <= 255:
                 self.__color = color
@@ -50,6 +52,9 @@ class DefaultText(Colors):
     def get_y_pos(self)-> int:
         return self.__y_pos
     
+    def set_text(self, text:str):
+        self.__text = text
+
     def get_text(self)-> str:
         return self.__text
     
