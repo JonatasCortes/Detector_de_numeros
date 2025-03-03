@@ -2,7 +2,7 @@ from .DefaultColor import Colors
 
 class DefaultButton(Colors):
     
-    def __init__(self, width:int, height:int, border:int , text:str,color:str|None = None, x_pos:int|None = None, y_pos:int|None = None):
+    def __init__(self, width:int, height:int, border:int , text:str,color:str|tuple[int, int, int]|None = None, x_pos:int|None = None, y_pos:int|None = None):
 
         self.set_color(color)
         self.set_y_pos(y_pos)
@@ -13,17 +13,22 @@ class DefaultButton(Colors):
         self.__border = border
         self.__text = text      
     
-    def set_color(self, color: str|None):
+    def set_color(self, color: str|tuple[int, int, int]|None):
 
         if color is None :
             self.__color = super.WHITE
-        else:
+        elif type(color)==str:
             color = color.upper()
             color_dict = super().get_colorDict()
             try:
                 self.__color = color_dict[color]
             except:
                 raise ValueError("Nome inválido para cor")
+        else:
+            if 0 <= color[0] <= 255 and 0 <= color[1] <= 255 and 0 <= color[2] <= 255:
+                self.__color = color
+            else:
+                raise ValueError("Valores inválidos para cor")
 
     def get_colour (self)-> tuple[int,int,int]:
         return self.__color

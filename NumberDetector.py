@@ -1,12 +1,18 @@
 from time import process_time_ns
+import json
 import sys
-import cv2
 import numpy as np
 import pygame
 from pygame.locals import *
 from Lib.Schemas.DefaultButton import DefaultButton
 from Lib.Schemas.DefaultText import DefaultText
 from Lib.Schemas.DefaultArea import DefaultArea
+from Lib.Schemas.DefaultColor import Colors
+
+#importa o dicionario com todas as cores do projeto
+
+colors = Colors()
+color_dict = colors.get_colorDict()
 
 #define as informações da tela
 
@@ -39,7 +45,7 @@ return_button = DefaultButton(width=220, height=50, border=5, color="WHITE", tex
 return_button.set_x_pos(screen_width-return_button.get_width()-20)
 return_button.set_y_pos(screen_height-return_button.get_height()-50)
 
-erase_button = DefaultButton(width=220, height=50, border=5, color="WHITE", text="ERASE")
+erase_button = DefaultButton(width=220, height=50, border=5, color="MAGENTA", text="ERASE")
 erase_button.set_x_pos(return_button.get_x_pos())
 erase_button.set_y_pos(return_button.get_y_pos()-return_button.get_height()-20)
 
@@ -68,6 +74,18 @@ typing_text = DefaultText(text="", color="BLACK", size=50)
 typing_text.set_x_pos(typing_area.get_x_pos()+typing_area.get_width()//2)
 typing_text.set_y_pos(typing_area.get_y_pos()+typing_area.get_height()//2)
 
+added_to_db_text = DefaultText(text="ADDED TO DB!", color="CYAN", size=50)
+added_to_db_text.set_x_pos(drawing_area.get_width()//2)
+added_to_db_text.set_y_pos((drawing_area.get_height()//2)-40)
+
+press_erase_text = DefaultText(text="PRESS ERASE", color="CYAN", size=50)
+press_erase_text.set_x_pos(added_to_db_text.get_x_pos())
+press_erase_text.set_y_pos(added_to_db_text.get_y_pos()+40)
+
+to_continue_text = DefaultText(text="TO CONTINUE", color="CYAN", size=50)
+to_continue_text.set_x_pos(press_erase_text.get_x_pos())
+to_continue_text.set_y_pos(press_erase_text.get_y_pos()+40)
+
 # endregion
 
 #region FUNCTIONS
@@ -77,7 +95,6 @@ def mouse_on_area(mouse_pos, area_info:DefaultArea):
         return True
     else:
         return False
-
 
 def draw_text(text_info:DefaultText):
 
@@ -100,8 +117,76 @@ def draw_button(button_info:DefaultButton):
     if button_info.get_text() != "":
         draw_text(text_info)
 
-# endregion
+def numberImageToMatrix():
+    screen_as_array = pygame.surfarray.array3d(screen)
+    screen_as_array = np.rot90(screen_as_array)
+    screen_as_array = screen_as_array[::-1]
+    screen_as_array = screen_as_array[0:drawing_area.get_width(), 0:drawing_area.get_height()]
 
+    screen_as_boolean_array = np.all(screen_as_array == color_dict["DRAWING_COLOR"], axis=-1)
+    coordinates_of_drawn_pixels = np.argwhere(screen_as_boolean_array)
+
+    min_y, min_x = coordinates_of_drawn_pixels.min(axis=0)
+    max_y, max_x = coordinates_of_drawn_pixels.max(axis=0)
+
+    screen_as_boolean_array = screen_as_boolean_array[min_y:max_y+1, min_x:max_x+1]
+    binary_array = screen_as_boolean_array.astype(int)
+
+    if binary_array.size == 0:
+        return None
+
+    return binary_array
+
+def numberDensityVector(numberMatrix):
+    height, width = numberMatrix.shape
+    numerber_of_sections = 4
+
+    number_vector = []
+
+    step_H = height//numerber_of_sections
+    step_W = width//numerber_of_sections
+
+    for index1 in range(numerber_of_sections):
+        for index2 in range(numerber_of_sections):
+            min_x = step_W*index2
+            max_x = step_W*(index2+1) if index2 < (numerber_of_sections-1) else width
+            min_y = step_H*index1
+            max_y = step_H*(index1+1) if index1 < (numerber_of_sections-1) else height
+
+            section = numberMatrix[min_y : max_y+1, min_x : max_x+1]
+
+            num_pixels_desenhados = 0
+            num_pixels_pretos = 0
+
+            for row in section:
+                for pixel in row:
+                    if pixel == 1:
+                        num_pixels_desenhados += 1
+                    else:
+                        num_pixels_pretos += 1
+
+            section_density = num_pixels_desenhados/(num_pixels_desenhados+num_pixels_pretos)
+            number_vector.append(section_density)
+
+    return tuple(number_vector)
+
+def addNumberToDataBase(file, number, number_list):
+
+    numberMatrix = numberImageToMatrix()
+    if numberMatrix is None:
+        return False
+
+    num_vector = numberDensityVector(numberMatrix)
+
+    new_number = {number : num_vector}
+    number_list.append(new_number)
+
+    with open(file, "w", encoding="utf-8") as arquivo:
+        json.dump(number_list, arquivo, indent=4)
+
+    return True
+
+# endregion
 
 #função que exibe o menu principal da aplicação
 def main_menu():
@@ -147,9 +232,16 @@ def guessNumber():
     pass
 
 def trainModel():
+
+    data_json = "data.json"
+    try:
+        with open(data_json, "r", encoding="utf-8") as arquivo:
+            number_list = json.load(arquivo)
+    except:
+        number_list = []
     
     screen.fill((0,0,0))
-    drawing = [False, True] #o primeiro parâmetro define se o usuario está apto a desenhar e o segundo se essa é a primeira iteração
+    drawing = {"isDrawing" : False, "isFirstRep" : True, "isAbleToDraw" : True}
     typing = False
     number = None
     running = True
@@ -167,12 +259,12 @@ def trainModel():
             trainDB_button.changeColorOnHover(mouse_pos, "MAGENTA")
 
             if not mouse_on_area(mouse_pos, drawing_area):
-                drawing[0] = False
+                drawing["isDrawing"] = False
 
             if event.type == pygame.MOUSEBUTTONDOWN:
 
                 if mouse_on_area(mouse_pos, drawing_area):
-                    drawing[0] = True
+                    drawing["isDrawing"] = True
 
                 if mouse_on_area(mouse_pos, typing_area):
                     typing = True
@@ -188,10 +280,23 @@ def trainModel():
                     screen.fill((0,0,0))
                     number = None
                     typing_text.set_text("")
+                    drawing["isAbleToDraw"] = True
+
+                if trainDB_button.isHover(mouse_pos):
+                    if number is not None and addNumberToDataBase(data_json, number, number_list):
+                        screen.fill((0,0,0))
+                        number = None
+                        typing_text.set_text("")
+                        draw_text(added_to_db_text)
+                        draw_text(press_erase_text)
+                        draw_text(to_continue_text)
+                        drawing["isAbleToDraw"] = False
+
+
 
             if event.type == pygame.MOUSEBUTTONUP:
-                drawing[0] = False
-                drawing[1] = True
+                drawing["isDrawing"] = False
+                drawing["isFirstRep"] = True
 
             if event.type == pygame.KEYDOWN and typing:
 
@@ -218,12 +323,12 @@ def trainModel():
         draw_button(trainDB_button)
         draw_text(typing_text)
 
-        if drawing[0]:
-            pygame.draw.circle(screen, "WHITE", mouse_pos, 2, 5)
-            if not drawing[1]:
-                pygame.draw.line(screen, "WHITE", mouse_pos, mouse_last_pos, 5)
+        if drawing["isDrawing"] and drawing["isAbleToDraw"]:
+            pygame.draw.circle(screen, color_dict["DRAWING_COLOR"], mouse_pos, 2, 5)
+            if not drawing["isFirstRep"]:
+                pygame.draw.line(screen, color_dict["DRAWING_COLOR"], mouse_pos, mouse_last_pos, 5)
             mouse_last_pos = mouse_pos
-            drawing[1] = False
+            drawing["isFirstRep"] = False
 
         pygame.display.update() 
         clock.tick(60)
