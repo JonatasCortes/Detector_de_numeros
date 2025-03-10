@@ -2,6 +2,8 @@ from time import process_time_ns
 import json
 import sys
 import numpy as np
+import heapq
+from collections import Counter
 import pygame
 from pygame.locals import *
 from Lib.Schemas.DefaultButton import DefaultButton
@@ -52,6 +54,10 @@ erase_button.set_y_pos(return_button.get_y_pos()-return_button.get_height()-20)
 trainDB_button = DefaultButton(width=220, height=50, border=5, color="WHITE", text="TRAIN DB")
 trainDB_button.set_x_pos(erase_button.get_x_pos())
 trainDB_button.set_y_pos(erase_button.get_y_pos()-erase_button.get_height()-20)
+
+guess_number_button = DefaultButton(height=50,width=220,border=5,text="GUESS NUMBER",color="WHITE")
+guess_number_button.set_x_pos(erase_button.get_x_pos())
+guess_number_button.set_y_pos(erase_button.get_y_pos()-erase_button.get_height()-20)
 # endregion
 
 # region AREAS
@@ -62,6 +68,11 @@ typing_area = DefaultArea(width=220, height=50)
 typing_area.set_x_pos(trainDB_button.get_x_pos())
 typing_area.set_y_pos(trainDB_button.get_y_pos()-trainDB_button.get_height()-100)
 typing_area.set_color("WHITE")
+
+display_area = DefaultArea(width=220, height=150)
+display_area.set_x_pos(guess_number_button.get_x_pos())
+display_area.set_y_pos(guess_number_button.get_y_pos()-guess_number_button.get_height()-150)
+display_area.set_color("WHITE")
 # endregion
 
 # region TEXTS
@@ -86,9 +97,21 @@ to_continue_text = DefaultText(text="TO CONTINUE", color="CYAN", size=50)
 to_continue_text.set_x_pos(press_erase_text.get_x_pos())
 to_continue_text.set_y_pos(press_erase_text.get_y_pos()+40)
 
+display_text = DefaultText(text="", color="BLACK", size=100)
+display_text.set_x_pos(display_area.get_x_pos()+display_area.get_width()//2)
+display_text.set_y_pos(display_area.get_y_pos()+display_area.get_height()//2)
+
 # endregion
 
 #region FUNCTIONS
+
+def most_frequent_number(list):
+
+    counter = Counter(list)
+
+    number, _ = counter.most_common(1)[0]
+    
+    return number
 
 def mouse_on_area(mouse_pos, area_info:DefaultArea):
     if area_info.get_x_pos() <= mouse_pos[0] <= area_info.get_x_pos() + area_info.get_width() and area_info.get_y_pos() <= mouse_pos[1] <= area_info.get_y_pos() + area_info.get_height():
@@ -126,14 +149,14 @@ def numberImageToMatrix():
     screen_as_boolean_array = np.all(screen_as_array == color_dict["DRAWING_COLOR"], axis=-1)
     coordinates_of_drawn_pixels = np.argwhere(screen_as_boolean_array)
 
+    if coordinates_of_drawn_pixels.size == 0:
+        return None
+
     min_y, min_x = coordinates_of_drawn_pixels.min(axis=0)
     max_y, max_x = coordinates_of_drawn_pixels.max(axis=0)
 
     screen_as_boolean_array = screen_as_boolean_array[min_y:max_y+1, min_x:max_x+1]
     binary_array = screen_as_boolean_array.astype(int)
-
-    if binary_array.size == 0:
-        return None
 
     return binary_array
 
@@ -186,6 +209,35 @@ def addNumberToDataBase(file, number, number_list):
 
     return True
 
+def probableNumber(data_base, num_vector):
+
+    distances = []
+
+    for dict in data_base:
+        for key, value in dict.items():
+            squared_differences_of_coordinates = []
+            for coordA, coordB in zip(num_vector, value):
+                squared_differences_of_coordinates.append((coordA-coordB)**2)
+            distance = sum(squared_differences_of_coordinates)**(1/2)
+            distances.append((key, distance))
+    
+    probable_numbers_tuples = heapq.nsmallest(10, distances, key= lambda b : b[1])
+    probable_numbers_keys = [ key for key, _ in probable_numbers_tuples]
+
+    probable_number = most_frequent_number(probable_numbers_keys)
+
+    return probable_number
+
+def guessNumber(data_base):
+    numberMatrix = numberImageToMatrix()
+    if numberMatrix is None:
+        return None
+    
+    num_vector = numberDensityVector(numberMatrix)
+    number = probableNumber(data_base, num_vector)
+
+    return number
+
 # endregion
 
 #função que exibe o menu principal da aplicação
@@ -204,13 +256,12 @@ def main_menu():
             guess_button.changeColorOnHover(mouse_pos,"MAGENTA")
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if guess_button.isHover(mouse_pos):
-                    guessNumber()
-                    print(guess_button.get_colour())
+                    guessNumberMenu()
 
             train_model_button.changeColorOnHover(mouse_pos,"MAGENTA")
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if train_model_button.isHover(mouse_pos):
-                    trainModel()
+                    trainModelMenu()
 
             exit_button.changeColorOnHover(mouse_pos,"MAGENTA")
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -228,10 +279,83 @@ def main_menu():
 
     pygame.quit()
 
-def guessNumber():
-    pass
+def guessNumberMenu():
 
-def trainModel():
+    data_json = "data.json"
+    with open(data_json, "r", encoding="utf-8") as arquivo:
+        data_base = json.load(arquivo)
+
+    screen.fill((0,0,0))
+    drawing = {"isDrawing" : False, "isFirstRep" : True, "isAbleToDraw" : True}
+
+    running = True
+    while running:
+
+        mouse_pos = pygame.mouse.get_pos()
+
+        for event in pygame.event.get():
+            
+            if event.type == QUIT:
+                sys.exit()
+
+            return_button.changeColorOnHover(mouse_pos, "MAGENTA")
+            erase_button.changeColorOnHover(mouse_pos, "MAGENTA")
+            guess_number_button.changeColorOnHover(mouse_pos, "MAGENTA")
+
+            if not mouse_on_area(mouse_pos, drawing_area):
+                drawing["isDrawing"] = False
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+
+                if mouse_on_area(mouse_pos, drawing_area):
+                    drawing["isDrawing"] = True
+
+                if return_button.isHover(mouse_pos):
+                    running = False
+
+                if erase_button.isHover(mouse_pos):
+                    screen.fill((0,0,0))
+                    display_text.set_text("")
+                    drawing["isAbleToDraw"] = True
+
+                if guess_number_button.isHover(mouse_pos):
+                    number = guessNumber(data_base)
+                    if number is not None:
+                        screen.fill((0,0,0))
+                        display_text.set_text(number)
+                        print(number)
+                    
+
+
+            if event.type == pygame.MOUSEBUTTONUP:
+                drawing["isDrawing"] = False
+                drawing["isFirstRep"] = True
+
+
+        pygame.draw.line(screen, "WHITE", (drawing_area.get_width(), 0), (drawing_area.get_width(), screen_height), 3)
+
+        #define o menor retangulo que cobre todos os botões da tela
+        buttons_rect = [trainDB_button.get_x_pos(), trainDB_button.get_y_pos(), trainDB_button.get_x_pos()+trainDB_button.get_width(), (return_button.get_y_pos()+return_button.get_height())-trainDB_button.get_y_pos()]
+        pygame.draw.rect(screen, "BLACK", buttons_rect)
+        display_rect = [display_area.get_x_pos(), display_area.get_y_pos(), display_area.get_width(), display_area.get_height()]
+        pygame.draw.rect(screen, display_area.get_color(), display_rect)
+
+        draw_button(return_button)
+        draw_button(erase_button)
+        draw_button(guess_number_button)
+        draw_text(display_text)
+
+        if drawing["isDrawing"] and drawing["isAbleToDraw"]:
+            pygame.draw.circle(screen, color_dict["DRAWING_COLOR"], mouse_pos, 2, 5)
+            if not drawing["isFirstRep"]:
+                pygame.draw.line(screen, color_dict["DRAWING_COLOR"], mouse_pos, mouse_last_pos, 5)
+            mouse_last_pos = mouse_pos
+            drawing["isFirstRep"] = False
+
+        pygame.display.update() 
+        clock.tick(60)
+
+def trainModelMenu():
 
     data_json = "data.json"
     try:
